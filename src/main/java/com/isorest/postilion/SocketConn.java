@@ -10,7 +10,7 @@ import org.apache.log4j.Logger;
 public class SocketConn {
 
 	private static Socket socket;
-	private static Logger loggr = Logger.getLogger(SocketConn.class);
+	private static Logger logger = Logger.getLogger(SocketConn.class);
 
 	public static void main(String[] args) {
 		
@@ -26,11 +26,11 @@ public class SocketConn {
 //		getProperties();
 
 		if (socket == null){
-			loggr.info("Socket is NULL... creating new connection!");
+			logger.info("Connecting to Postilion ...");
 			createConnection();			
 		}
 		else{
-			loggr.info("Connection exists - " + socket.getInetAddress() + ":" + socket.getPort());
+			logger.info("Connection exists - " + socket.getInetAddress() + ":" + socket.getPort());
 			/**issue: when this works an existing connection is reported but sending a trx yields 
 			 * 'connection closed'. For now lets kill it and reconnect. Try again with direct cnxn to PBridge
 			 */
@@ -50,16 +50,20 @@ public class SocketConn {
 		try {
 			InetAddress server = InetAddress.getByName( Api2PostilionConfig.serverIpAddress );
 						
-			loggr.info("Connecting to server address:"
+			logger.info("Connecting to server address: "
 					+ server.getHostAddress() + " server port: " + Api2PostilionConfig.serverPort );
 
 			socket = new Socket(server.getHostAddress(), Api2PostilionConfig.serverPort );
 
-			loggr.info("----CONNECTED----");
+			logger.info("----CONNECTED----");
 
 		} catch (UnknownHostException e) {
-			loggr.error("FAILED to connect to Postilion on " + Api2PostilionConfig.serverIpAddress );
+			logger.error("FAILED to connect to Postilion on " + Api2PostilionConfig.serverIpAddress );
 			e.printStackTrace();
+		} catch (java.net.ConnectException e){
+			logger.error("FAILED to connect to Postilion on " + Api2PostilionConfig.serverIpAddress );
+			e.printStackTrace();
+			
 		} catch (IOException e) {
 
 			e.printStackTrace();

@@ -9,24 +9,17 @@ package com.isorest.domain;
  *
  * @author Artwell Mamvura
  */
-public class StewardBankApiResponse<T> {
+public class StewardBankApiResponse {
 
     private static final long serialVersionUID = -0x32EA84E37FFB508EL;
 
     private String statusCode;
-    private String message;
-    private T responseBody;
-    
+    private String message;    
+    private StewardResponseBody responseBody;
 
     public StewardBankApiResponse() {
         statusCode = StewardBankConstants.StatusCodes.SUCCESS;
         message = StewardBankConstants.Messages.OK;
-    }
-
-    public StewardBankApiResponse(final String statusCode, final String message, final T responseBody) {
-        this.statusCode = statusCode;
-        this.message = message;
-        this.responseBody = responseBody;
     }
 
     public String getStatusCode() {
@@ -45,19 +38,14 @@ public class StewardBankApiResponse<T> {
         this.message = message;
     }
 
-    public T getResponseBody() {
-        return responseBody;
-    }
+	public StewardResponseBody getResponseBody() {
+		return responseBody;
+	}
 
-    public void setResponseBody(T responseBody) {
-        this.responseBody = responseBody;
-    }
+	public void setResponseBody(StewardResponseBody responseBody) {
+		this.responseBody = responseBody;
+	}
 
-    @Override
-    public String toString() {
-        return "StewardBankApiResponse [statusCode=" + statusCode
-                + ", message=" + message + ", responseBody=" + responseBody
-                + "]";
-    }
-
+    
+    
 }

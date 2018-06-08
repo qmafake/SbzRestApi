@@ -2,27 +2,24 @@ package com.isorest.postilion;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
 
 import org.apache.log4j.Logger;
-import org.hibernate.mapping.Subclass;
-import org.json.JSONObject;
 
-import com.isorest.domain.Field;
 import com.isorest.domain.IsoRestRequest;
-import com.isorest.domain.StewardBankApiResponse;
-import com.isorest.domain.SubIso;
 
 import postilion.realtime.sdk.message.bitmap.Iso8583;
-import postilion.realtime.sdk.message.bitmap.Iso8583Post.Bit;
-import postilion.realtime.sdk.message.bitmap.Iso8583Post.PrivBit;
 import postilion.realtime.sdk.message.bitmap.Iso8583.MsgType;
 import postilion.realtime.sdk.message.bitmap.Iso8583Post;
+import postilion.realtime.sdk.message.bitmap.Iso8583Post.Bit;
+import postilion.realtime.sdk.message.bitmap.Iso8583Post.PrivBit;
+import postilion.realtime.sdk.message.bitmap.SignedAmount;
+import postilion.realtime.sdk.message.bitmap.StructuredData;
+import postilion.realtime.sdk.message.bitmap.XFieldUnableToConstruct;
 import postilion.realtime.sdk.util.DateTime;
 import postilion.realtime.sdk.util.XPostilion;
 import postilion.realtime.sdk.util.convert.Pack;
 
-public class MessageConvetor<T> {
+public class MessageConvetor {
 
 	private static Logger logger = Logger.getLogger(MessageConvetor.class);
 
@@ -41,7 +38,6 @@ public class MessageConvetor<T> {
 		msg.putField(7, date.get("MMddhhmmss"));
 		msg.putField(11, "888888");
 		msg.putField(12, date.get("HHmmss"));
-		// msg.putField(13, date.get("MMd"));
 		msg.putField(13, fmt.format(dt));
 		msg.putField(70, "001");
 		msg.putField(100, "91911911777");
@@ -58,132 +54,128 @@ public class MessageConvetor<T> {
 		return buf;
 	}
 
-	public byte[] constructAIRmsgToPostilion(IsoRestRequest req) throws XPostilion {
+	public byte[] constructReqMsgToPostilion(IsoRestRequest apiReq) throws XPostilion {
 
 		Iso8583Post msg = new Iso8583Post();
+		DateTime dateTime = new DateTime();
 
-		List<Field> fieldsList = req.getField();
-		SubIso  privFields = req.getIsomsg();
-		List<Field> privFieldsList = privFields.getField();
+		StandardizedApiRequest stdApiReq = new StandardizedApiRequest(); 
+		stdApiReq = stdApiReq.unpackAPiRequest(apiReq);
 
-		for (Field field : fieldsList){
-
-			logger.info("field: " + field.getId() + " - " + field.getValue());
-		}
-		
-		for (Field field : privFieldsList){
-
-			logger.info("field: " + field.getId() + " - " + field.getValue());
-		}
-
-		String switchKey = "SwitchKey-".concat( fieldsList.get(2).getValue() );
-		String cardAccptor = "1 Howe Street E004     Cape Town    WCZA";
-
+		msg.setMessageType(stdApiReq.getMsgType());
 		putDefaultFields(msg);
-		msg.putField( Bit._003_PROCESSING_CODE, "010000" );
-		msg.putField(Bit._004_AMOUNT_TRANSACTION, Pack.resize("20", 12, '0', false));
+		msg.putField( Bit._003_PROCESSING_CODE, stdApiReq.getProcessingCode() );
+		msg.putField(Bit._004_AMOUNT_TRANSACTION, Pack.resize(stdApiReq.getTranAmount(), 12, '0', false));	//TODO: Request in minor denomination
+		
+		msg.putField(Bit._014_DATE_EXPIRATION, "1808"); //TODO: Really now?
+		msg.putField(Bit._015_DATE_SETTLE, dateTime.get("MMdd"));
+		
+		msg.putAmountTranFee(processCalcCharge("0", msg.getMsgType()));
+		msg.putAmountTranProcFee(processCalcCharge("0", msg.getMsgType()));
+		
+		//		msg.putField(Bit._028_AMOUNT_TRAN_FEE, 
+		msg.putField(Bit._026_POS_PIN_CAPTURE_CODE, "12");	
+		msg.putField(Bit._032_ACQUIRING_INST_ID_CODE, "502195");
+		msg.putField(Bit._033_FORWARDING_INST_ID_CODE, "502195");
 
-		msg.putField(Bit._043_CARD_ACCEPTOR_NAME_LOC, Pack.resize(switchKey, 40, ' ', true));
+//		msg.putField(Bit._037_RETRIEVAL_REF_NR, "049973000011"); //TODO: Remove this 
+		msg.putField(Bit._056_MSG_REASON_CODE, "1510");
+		msg.putField(Bit._059_ECHO_DATA, "0222346450");
+		
+		msg.putField(Bit._102_ACCOUNT_ID_1, stdApiReq.getFromAccount());
+		msg.putField(Bit._103_ACCOUNT_ID_2, stdApiReq.getToAccount() );
 
-		msg.putField(Bit._102_ACCOUNT_ID_1, "11111111111111" ); 
-
-		//		System.out.println(this.getClass().getSimpleName() + ": Request ISO message\n" + msg.toString());
-		logger.info("Request ISO message\n" + msg.toString());		
+//		msg.putPrivField(PrivBit._014_SPONSOR_BANK, Pack.resize(stdApiReq.getSponsorBank(), 8, ' ', true) );
+//		msg.putPrivField(PrivBit._024_PAYEE_REFERENCE, stdApiReq.getPayeeReference()); 
+		msg.putPrivField(PrivBit._002_SWITCH_KEY, dateTime.get("MMddhhmmss"));		
+//		msg.putPrivField(PrivBit._003_ROUTING_INFO, "StewardVasSrStewardPbSnk000011000011            ");    //TODO: Remove this         
+		msg.putPrivField(PrivBit._009_ADDITIONAL_NODE_DATA, "");
+				
+		msg.putPrivField(PrivBit._020_AUTHORIZER_DATE_SETTLEMENT, dateTime.get("YYYYMMdd"));
+		
+		StructuredData sd = new StructuredData();
+		
+		sd.put("VasApplication", "DirectInject");
+		sd.put("BatchId", "49973");
+		
+//		msg.putStructuredData(sd); TODO: testing without 
+		
+		logger.info("VasApplication: " + sd.get("VasApplication") );
+		logger.info("BatchId: " + sd.get("BatchId") );
+		
+		logger.info("Request ISO8583 message\n" + msg.toString());
 
 		return new2byteHeaderPacket(msg.toMsg());
 	}
 
+	public byte[] constructReversalReqMsgToPostilion(Iso8583Post msg_req) {
+		
+		Iso8583Post msg = new Iso8583Post();
+
+		try {
+			String msgType = msg_req.getMsgType() == Iso8583Post.MsgType._0420_ACQUIRER_REV_ADV ? "0421" : "0420";
+			msg.setMessageType(msgType);
+			msg.putProcessingCode(msg_req.getProcessingCode());
+
+			msg.copyFieldFrom(Bit._004_AMOUNT_TRANSACTION, msg_req);
+
+			msg.copyPrivFieldFrom(PrivBit._002_SWITCH_KEY , msg_req);	
+			
+			logger.info("Reversal ISO8583 message\n" + msg.toString());
+			
+			return new2byteHeaderPacket(msg.toMsg());
+			
+		} catch (XPostilion e) {
+		
+			e.printStackTrace();
+		}
+		
+		logger.error("Very Unexpected Error. Failed to create reversal object");
+		
+		byte[] shouldNotHappen = new byte[0];
+		
+		return shouldNotHappen;
+		
+	}
 	
 	private void putDefaultFields(Iso8583Post msg) throws XPostilion {
 
 		DateTime date = new DateTime();
+		String cardAccptor = "SBZ MOBILE ECONET      Harare       04ZW";
 
-		msg.setMessageType("0200");
-//		msg.putMsgType(MsgType._0400_ACQUIRER_REV_REQ);
-//		msg.setMessageType(postilion.realtime.sdk.message.bitmap.Iso8583.MsgType._0200_TRAN_REQ);
+		//		msg.setMessageType(postilion.realtime.sdk.message.bitmap.Iso8583.MsgType._0200_TRAN_REQ);
 		//		msg.putField(2, "9999888888888882");		
 		msg.putField(Bit._007_TRANSMISSION_DATE_TIME, date.get("MMddhhmmss"));
-		msg.putField(Bit._011_SYSTEMS_TRACE_AUDIT_NR, "000001");
+		msg.putField(Bit._011_SYSTEMS_TRACE_AUDIT_NR, "000002"); //TODO: Remove this
 		msg.putField(Bit._012_TIME_LOCAL, date.get("HHmmss") );
 
 		Date dt = new Date();
 		SimpleDateFormat fmt = new SimpleDateFormat("MMdd");		
-		msg.putField(13, fmt.format(dt));
+		msg.putField(Bit._013_DATE_LOCAL, fmt.format(dt));
 
 		msg.putField(Bit._022_POS_ENTRY_MODE, "000");
 		msg.putField(Bit._025_POS_CONDITION_CODE, "00");		
-		msg.putField(Bit._041_CARD_ACCEPTOR_TERM_ID, Pack.resize("11111111", 8, ' ', true) );
-		msg.putField(Bit._042_CARD_ACCEPTOR_ID_CODE, Pack.resize("111111111111111", 15, ' ', true) );
-		msg.putField(Bit._044_ADDITIONAL_RSP_DATA, "Tomcat 8.0 Transaction");
+		msg.putField(Bit._041_CARD_ACCEPTOR_TERM_ID, Pack.resize("ZSS26377", 8, ' ', true) );
+		msg.putField(Bit._042_CARD_ACCEPTOR_ID_CODE, Pack.resize("26377-SBZMOBILE", 15, ' ', true) );
+		msg.putField(Bit._043_CARD_ACCEPTOR_NAME_LOC, Pack.resize(cardAccptor, 40, ' ', true));
+		msg.putField(Bit._049_CURRENCY_CODE_TRAN, "840");		
+		msg.putField(Bit._100_RECEIVING_INST_ID_CODE, "502195" );
+		msg.putField(Bit._123_POS_DATA_CODE, "100450100130021" );
 
-		msg.putField(Bit._049_CURRENCY_CODE_TRAN, "840");
-		msg.putField(Bit._100_RECEIVING_INST_ID_CODE, "246812" );   
-		msg.putField(Bit._123_POS_DATA_CODE, "210101604144101" );
-					msg.putPrivField(PrivBit._002_SWITCH_KEY, date.get("MMddhhmmss"));
-	}	
-	
-	private void putDefaultFields_(Iso8583Post msg) throws XPostilion {
-
-		DateTime date = new DateTime();
-
-		msg.setMessageType("0200");
-//		msg.putMsgType(MsgType._0400_ACQUIRER_REV_REQ);
-//		msg.setMessageType(postilion.realtime.sdk.message.bitmap.Iso8583.MsgType._0200_TRAN_REQ);
-		//		msg.putField(2, "9999888888888882");		
-		msg.putField(Bit._007_TRANSMISSION_DATE_TIME, date.get("MMddhhmmss"));
-		msg.putField(Bit._011_SYSTEMS_TRACE_AUDIT_NR, "000001");
-		msg.putField(Bit._012_TIME_LOCAL, date.get("HHmmss") );
-
-		Date dt = new Date();
-		SimpleDateFormat fmt = new SimpleDateFormat("MMdd");		
-		msg.putField(13, fmt.format(dt));
-
-		msg.putField(Bit._022_POS_ENTRY_MODE, "000");
-		msg.putField(Bit._025_POS_CONDITION_CODE, "00");		
-		msg.putField(Bit._041_CARD_ACCEPTOR_TERM_ID, Pack.resize("Tomcat", 8, ' ', true) );
-		msg.putField(Bit._042_CARD_ACCEPTOR_ID_CODE, Pack.resize("Tomcat_8.0", 15, ' ', true) );
-
-		msg.putField(Bit._049_CURRENCY_CODE_TRAN, "840");
-		msg.putField(Bit._100_RECEIVING_INST_ID_CODE, "246812" );   
-		msg.putField(Bit._123_POS_DATA_CODE, "210101604144101" );
-					msg.putPrivField(PrivBit._002_SWITCH_KEY, date.get("MMddhhmmss"));
 	}	
 
-	@SuppressWarnings("rawtypes")
-	public StewardBankApiResponse createStewardBankApiResponse(Iso8583Post msg_rsp) throws XPostilion {
+	private SignedAmount processCalcCharge(String charge, int msgtype) throws XFieldUnableToConstruct {
 
-		logger.info("Creating Steward Bank Api Response ...");
-		
-		StewardBankApiResponse stewardBankApiResponse = new StewardBankApiResponse();
-		//			String alphaCurrCode = SupportedCurrencies.currencyMap.get( msg_rsp.getField(Bit._049_CURRENCY_CODE_TRAN) );
+		charge =String.valueOf(Math.round(Float.parseFloat(charge)*100));
+		charge =Pack.resize(charge, 8, '0', false);
+		SignedAmount samt;
+		if (isReversalMsgType(msgtype))
+			samt = new SignedAmount("C",charge);
+		else
+			samt = new SignedAmount("D",charge);
 
-		String alphaCurrCode = msg_rsp.getField(Bit._044_ADDITIONAL_RSP_DATA).split("#")[0] ;
-
-		
-		JSONObject jsonResp = new JSONObject();
-		jsonResp.put("one", "two");
-		jsonResp.put("three", "four");
-		
-		stewardBankApiResponse.setStatusCode("00");
-		stewardBankApiResponse.setMessage("Tran All Good");
-		stewardBankApiResponse.setResponseBody( (T) jsonResp);
-
-		return stewardBankApiResponse;
+		return samt;
 	}
-
-	//		private SignedAmount processCalcCharge(String charge, int msgtype) throws XFieldUnableToConstruct {
-	//
-	//			charge = charge.replaceAll("[^\\d.]", ""); 		//replace all non digit and non comma (USD 2.32) becomes (2.32)
-	//			charge =String.valueOf(Math.round(Float.parseFloat(charge)*100));
-	//			charge =Pack.resize(charge, 8, '0', false);
-	//			SignedAmount samt;
-	//			if (isReversalMsgType(msgtype))
-	//				samt = new SignedAmount("C",charge);
-	//			else
-	//				samt = new SignedAmount("D",charge);
-	//
-	//			return samt;
-	//		}
 
 	private boolean isReversalMsgType(int msgType) {
 

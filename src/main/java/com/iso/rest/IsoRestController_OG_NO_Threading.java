@@ -27,24 +27,24 @@ import postilion.realtime.sdk.util.XPostilion;
  *
  * @author Artwell Mamvura
  */
-@RestController
-public class IsoRestController {
+//@RestController QM
+public class IsoRestController_OG_NO_Threading {
 
 	//	private static final Logger log = Logger.getLogger(IsoRestController.class.getName());
-	private static Logger logger = Logger.getLogger(IsoRestController.class);
+	private static Logger logger = Logger.getLogger(IsoRestController_OG_NO_Threading.class);
 
-	@RequestMapping("/403")
+	@RequestMapping("/403_OG")
 	public String accessDenied() {
 		return "/403";
 	}
 
-	@RequestMapping(value = "/test", method = RequestMethod.GET)
+	@RequestMapping(value = "/test_OG", method = RequestMethod.GET)
 	public String test() {
 		return "testing";
 	}
 
 	@SuppressWarnings("rawtypes")
-	@RequestMapping(value = "/v1/rest/iso/converter", method = RequestMethod.POST)
+	@RequestMapping(value = "/v1/rest/iso/converter_OG", method = RequestMethod.POST)
 	public StewardBankApiResponse createIso(@RequestBody IsoRestRequest isoRestRequest) {
 		//Build ISO respective Request 
 		//This is a sample Response:
@@ -67,24 +67,7 @@ public class IsoRestController {
 		Iso8583Post iso8583msg_resp = pc.processTranReqToPostilion(iso8583msg_req);
 
 		StewardResponseBody stewardResponseBody = new StewardResponseBody();
-		
-//		if (iso8583msg_resp == null && !(iso8583msg_resp instanceof Iso8583Post))
-		try {
-			if (iso8583msg_resp.getResponseCode() == null)
-			{
-				stewardBankApiResponse.setMessage("ERROR OCCURED");
-				stewardBankApiResponse.setStatusCode("500");						
-				stewardResponseBody.setRrn("N/A");
-				stewardResponseBody.setPostilion_resp_code("N/A");
-				stewardBankApiResponse.setResponseBody(stewardResponseBody);
-				
-				return stewardBankApiResponse;
-			}
-		} catch (XPostilion e1) {
-			
-			e1.printStackTrace();
-		}
-		
+//		JSONObject jsonResponse = new JSONObject();
 		
 		try { //TODO: Error handle a no response case
 			if ( iso8583msg_resp.getResponseCode().equals("00")){

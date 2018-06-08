@@ -3,8 +3,8 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.isorest.squareworld</groupId>
-	<artifactId>rest-iso-server</artifactId>
-	<version>1.0.1</version>
+	<artifactId>isorest</artifactId>
+	<version>1.0.0</version>
 	<packaging>war</packaging>
 
 	<name>rest-iso-server</name>
@@ -308,10 +308,15 @@
 			<artifactId>postilion.realtime</artifactId>
 			<version>5.3</version>
 		</dependency>
+		<dependency>
+			<groupId>test</groupId>
+			<artifactId>testing</artifactId>
+			<version>1.1</version>
+		</dependency>
 	</dependencies>
 
 	<build>
-		<finalName>isorest</finalName>
+		<!-- finalName>isorest</finalName-->
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
