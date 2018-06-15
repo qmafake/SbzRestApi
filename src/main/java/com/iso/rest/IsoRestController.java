@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.isorest.domain.IsoRestRequest;
 import com.isorest.domain.StewardBankApiResponse;
 import com.isorest.domain.StewardResponseBody;
-
 import com.isorest.postilion.Api2PostilionConfig;
 import com.isorest.postilion.PostilionConnector;
 
@@ -66,10 +65,11 @@ public class IsoRestController {
 		byte[] iso8583msg_req = pc.processTranReqFromClient(isoRestRequest);
 		Iso8583Post iso8583msg_resp = pc.processTranReqToPostilion(iso8583msg_req);
 
+
 		StewardResponseBody stewardResponseBody = new StewardResponseBody();
 		
-//		if (iso8583msg_resp == null && !(iso8583msg_resp instanceof Iso8583Post))
-		try {
+		try { //TODO: Error handle a no response case
+
 			if (iso8583msg_resp.getResponseCode() == null)
 			{
 				stewardBankApiResponse.setMessage("ERROR OCCURED");
@@ -80,13 +80,7 @@ public class IsoRestController {
 				
 				return stewardBankApiResponse;
 			}
-		} catch (XPostilion e1) {
 			
-			e1.printStackTrace();
-		}
-		
-		
-		try { //TODO: Error handle a no response case
 			if ( iso8583msg_resp.getResponseCode().equals("00")){
 				
 				stewardBankApiResponse.setMessage("SUCCESS");

@@ -12,6 +12,7 @@ import postilion.realtime.sdk.message.bitmap.Iso8583.MsgType;
 import postilion.realtime.sdk.message.bitmap.Iso8583Post;
 import postilion.realtime.sdk.message.bitmap.Iso8583Post.Bit;
 import postilion.realtime.sdk.message.bitmap.Iso8583Post.PrivBit;
+import postilion.realtime.sdk.message.bitmap.OriginalDataElements;
 import postilion.realtime.sdk.message.bitmap.SignedAmount;
 import postilion.realtime.sdk.message.bitmap.StructuredData;
 import postilion.realtime.sdk.message.bitmap.XFieldUnableToConstruct;
@@ -95,32 +96,64 @@ public class MessageConvetor {
 		
 		StructuredData sd = new StructuredData();
 		
-		sd.put("VasApplication", "DirectInject");
-		sd.put("BatchId", "49973");
+		sd.put("MSISDN", stdApiReq.getMSISDN());
+//		sd.put("BatchId", "49973");
 		
-//		msg.putStructuredData(sd); TODO: testing without 
+		msg.putStructuredData(sd);  
 		
-		logger.info("VasApplication: " + sd.get("VasApplication") );
-		logger.info("BatchId: " + sd.get("BatchId") );
+		logger.info("MSISDN: " + sd.get("MSISDN") );
 		
 		logger.info("Request ISO8583 message\n" + msg.toString());
 
-		return new2byteHeaderPacket(msg.toMsg());
+		return new2byteHeaderPacket(msg.toMsg()); //TODO: Encapsulate
 	}
 
-	public byte[] constructReversalReqMsgToPostilion(Iso8583Post msg_req) {
+	public byte[] constructReversalReqMsgToPostilion(Iso8583Post msg_req) { //TODO: Encapsulate
 		
 		Iso8583Post msg = new Iso8583Post();
+		DateTime dateTime = new DateTime();
 
 		try {
-			String msgType = msg_req.getMsgType() == Iso8583Post.MsgType._0420_ACQUIRER_REV_ADV ? "0421" : "0420";
+			String msgType = null;
+			
+			if ( msg_req.getMsgType() == MsgType._0421_ACQUIRER_REV_ADV_REP || msg_req.getMsgType() == MsgType._0420_ACQUIRER_REV_ADV) 
+				msgType = "0421";
+			else if ( msg_req.getMsgType() == MsgType._0200_TRAN_REQ)
+				msgType = "0420";
+			else
+				msgType = "0210"; // Error Shldnt happen
+			
 			msg.setMessageType(msgType);
 			msg.putProcessingCode(msg_req.getProcessingCode());
 
 			msg.copyFieldFrom(Bit._004_AMOUNT_TRANSACTION, msg_req);
 
-			msg.copyPrivFieldFrom(PrivBit._002_SWITCH_KEY , msg_req);	
+			msg.copyFieldFrom(Bit._011_SYSTEMS_TRACE_AUDIT_NR, msg_req); 
+			msg.copyFieldFrom(Bit._012_TIME_LOCAL, msg_req);
+			msg.copyFieldFrom(Bit._013_DATE_LOCAL, msg_req);
 			
+			msg.copyFieldFrom(Bit._041_CARD_ACCEPTOR_TERM_ID, msg_req);
+			msg.copyFieldFrom(Bit._042_CARD_ACCEPTOR_ID_CODE, msg_req);
+			msg.copyFieldFrom(Bit._043_CARD_ACCEPTOR_NAME_LOC, msg_req);
+			
+			
+			int ogMsgType = msg_req.getMsgType(); 
+			String ogStan = msg_req.getField(Bit._011_SYSTEMS_TRACE_AUDIT_NR);
+			String ogTransDateTime =  msg_req.getField(Bit._007_TRANSMISSION_DATE_TIME);
+			String ogAcquirerId = msg_req.getField(Bit._032_ACQUIRING_INST_ID_CODE);
+			String ogForwardingId =  msg_req.getField(Bit._033_FORWARDING_INST_ID_CODE);
+			
+			OriginalDataElements originalDataElements = new OriginalDataElements(ogMsgType, ogStan, ogTransDateTime,
+					ogAcquirerId, ogForwardingId);
+ 
+			msg.putOriginalDataElements(originalDataElements);
+			
+			msg.putPrivField(PrivBit._009_ADDITIONAL_NODE_DATA , msg_req.getPrivField(PrivBit._002_SWITCH_KEY) );
+			
+			msg.putPrivField(PrivBit._011_ORIGINAL_KEY, msg_req.getPrivField(PrivBit._002_SWITCH_KEY) );
+			
+			msg.putPrivField(PrivBit._002_SWITCH_KEY , dateTime.get("MMddhhmmss"));
+						
 			logger.info("Reversal ISO8583 message\n" + msg.toString());
 			
 			return new2byteHeaderPacket(msg.toMsg());
@@ -179,10 +212,10 @@ public class MessageConvetor {
 
 	private boolean isReversalMsgType(int msgType) {
 
-		if (msgType==Iso8583Post.MsgType._0420_ACQUIRER_REV_ADV
-				|| msgType==Iso8583Post.MsgType._0400_ACQUIRER_REV_REQ
-				|| msgType==Iso8583Post.MsgType._0421_ACQUIRER_REV_ADV_REP
-				|| msgType==Iso8583Post.MsgType._0401_ACQUIRER_REV_REQ_REP)
+		if (msgType==MsgType._0420_ACQUIRER_REV_ADV
+				|| msgType==MsgType._0400_ACQUIRER_REV_REQ
+				|| msgType==MsgType._0421_ACQUIRER_REV_ADV_REP
+				|| msgType==MsgType._0401_ACQUIRER_REV_REQ_REP)
 			return true;
 		return false;
 	}

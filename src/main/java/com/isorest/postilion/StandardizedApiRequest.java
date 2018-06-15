@@ -20,6 +20,7 @@ public class StandardizedApiRequest {
 	private String tranAmount;	
 	private String fromAccount;
 	private String toAccount;
+	private String MSISDN;
 	
 	private String sponsorBank;
 	private String payeeReference;
@@ -50,6 +51,7 @@ public class StandardizedApiRequest {
 			
 			switch ( Integer.parseInt( field.getId()) ){ //TODO: API req must make ID an int
 			case PrivBit._014_SPONSOR_BANK : this.setSponsorBank(field.getValue());  break;
+			case PrivBit._022_STRUCT_DATA : this.setMSISDN(field.getValue());  break;
 			case PrivBit._024_PAYEE_REFERENCE : this.setPayeeReference(field.getValue());  break;
 			}
 		}
@@ -103,6 +105,16 @@ public class StandardizedApiRequest {
 	public String getToAccount() {
 		return toAccount;
 	}
+
+	public String getMSISDN() {
+		return MSISDN;
+	}
+
+
+	public void setMSISDN(String mSISDN) {
+		MSISDN = mSISDN;
+	}
+
 
 	public String getSponsorBank() {
 		return sponsorBank;

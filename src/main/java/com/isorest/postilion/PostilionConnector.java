@@ -2,7 +2,9 @@ package com.isorest.postilion;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 
 import org.apache.log4j.Logger;
@@ -99,30 +101,24 @@ public class PostilionConnector implements Runnable {
 			out2.flush();  out2.close();  is.close();
 		} 
 		catch (SocketTimeoutException e1) {
-			logger.error( "A timeout occured - intiate 0420 msg: \\TODO:");
+			logger.error( "A timeout occured - intiate 0420 msg ...");
 			logger.error( e1.getMessage() );			
 
-			byte[] msg_to_reverse = new byte[_msg_to_transmit.length -2];  
-			System.arraycopy(_msg_to_transmit, 2, msg_to_reverse, 0, msg_to_reverse.length);
+			Iso8583Post msg_req = cleanMsgForReversal(_msg_to_transmit); //TODO: Encapsulate
 
-			Iso8583Post msg_req = new Iso8583Post();
-
-			try {
-				msg_req.fromMsg(msg_to_reverse, 0);
-			} catch (XPostilion e) {
-
-				e.printStackTrace();
-			}
-
-			logger.error( "Check Req msg: " + msg_req.toString() );
-
-			byte[] iso8583msg_req = prepareTranReversalReqFromAPI(msg_req);
-			msg_rsp = processTranReversalReqToPostilion(iso8583msg_req, sc);			
-
-		}
-		catch (Exception e) {
+			byte[] msg_rvsal_b = prepareTranReversalReqFromAPI(msg_req); 
+			msg_rsp = processTranReversalReqToPostilion(msg_rvsal_b, sc);		
+		}		
+		catch(SocketException e){
 			logger.error(this.getClass().getSimpleName()
-					+ " Error occurred in msg transmission to/from Postilion:\n"
+					+ " Network error occurred socket error in Postilion connection:\n"
+					+ e.getMessage()
+					+e.getCause() 
+					+e.getStackTrace().toString());			
+		}
+
+		catch (Exception e) {
+			logger.error("Error occurred in msg transmission to/from Postilion:\n"
 					+ e.getMessage()
 					+e.getCause() 
 					+e.getStackTrace());
@@ -130,14 +126,37 @@ public class PostilionConnector implements Runnable {
 		}		
 		finally{
 			sc.closeSocket(socket);
-			logger.info("Transmission ended and connection closed | RESPONSE TIME(ms):"   + (rspTime!=0L ? rspTime : "N/A") );
+			logger.info("Transmission ended. RESPONSE TIME(ms):"   + (rspTime!=0L ? rspTime : "N/A") );
 		}
 
 		return msg_rsp;
 	}
 
+	/**
+	 * This msg 
+	 * @param msg_prior_b - The previous message that was just transmitted
+	 * @return - Iso8583Post reversal msg
+	 */
+	private Iso8583Post cleanMsgForReversal(byte[] msg_prior_b) { //TODO: Encapsulate
 
-	private Iso8583Post processTranReversalReqToPostilion(byte[] iso8583msg_req, SocketConn sc) {
+		byte[] msg_to_reverse = new byte[msg_prior_b.length -2];  
+		System.arraycopy(msg_prior_b, 2, msg_to_reverse, 0, msg_to_reverse.length);
+
+		Iso8583Post msg_rvsal = new Iso8583Post();
+
+		try {
+			msg_rvsal.fromMsg(msg_to_reverse, 0);
+		} catch (XPostilion e) {
+
+			e.printStackTrace();
+		}
+
+		//		logger.error( "Check original msg: " + msg_rvsal.toString() );
+		return msg_rvsal;
+	}
+
+
+	private Iso8583Post processTranReversalReqToPostilion(byte[] msg_rvsal_b, SocketConn sc) {
 
 		Iso8583Post msg_rsp = new Iso8583Post();
 		boolean isSuccessfulReversal = false;
@@ -157,7 +176,7 @@ public class PostilionConnector implements Runnable {
 			{
 				/**---------------------------------------------------------------------- Client Request */																													//showMsgDetail(_msg_to_transmit); System.out.print("\n");			 
 				out2 = socket.getOutputStream();			
-				out2.write(iso8583msg_req);		//write msg to Postilion Postbridge port.	
+				out2.write(msg_rvsal_b);		//write msg to Postilion Postbridge port.	
 
 				/**---------------------------------------------------------------------- Server Response */		
 				is = socket.getInputStream();		
@@ -165,7 +184,7 @@ public class PostilionConnector implements Runnable {
 				byte[] resultBuff = new byte[0];
 				byte[] buff = new byte[Api2PostilionConfig.expectedRespLen];
 				int k = -1; 
-
+				//TODO: Remove below or Encapsulate
 				socket.setSoTimeout(1000 * Api2PostilionConfig.readTimeOut);	/* 1000*5 => 5 seconds read timeout. If read operation has
 																			       blocked for >5 seconds a SocketTimeOutException occurs */	
 				while((k = is.read(buff, 0, buff.length)) > -1) {				//Read server response						
@@ -182,13 +201,27 @@ public class PostilionConnector implements Runnable {
 				if (resultBuff.length > 2)								//just doubly make sure that there is a result
 				{				
 					byte[] tbuff = new byte[resultBuff.length-2]; 		
-																		
+
 					System.arraycopy(resultBuff, 2, tbuff, 0, resultBuff.length-2);
-										
+
 					msg_rsp.fromMsg(tbuff, 0);
 
 					logger.info("Postilion Response\n" + msg_rsp.toString());
 				}			
+
+				try {
+					if ( msg_rsp.getResponseCode() != null ) {
+						if( msgRespHasReversalResp(msg_rsp) ){
+
+							logger.info("Valid reversal response received ...");
+							isSuccessfulReversal  = true;
+						}						
+					}
+				} catch (XPostilion e) {
+
+					e.printStackTrace();
+				}
+
 				out2.flush();  out2.close();  is.close();
 			} 
 			catch (SocketTimeoutException e1) {
@@ -198,25 +231,14 @@ public class PostilionConnector implements Runnable {
 				try {
 					retry.errorOccured();
 				} catch (Exception e2) {
-					
+
 					e2.printStackTrace();
 				}
-				//				byte[] msg_to_reverse = new byte[_msg_to_transmit.length -2];  
-				//				System.arraycopy(_msg_to_transmit, 2, msg_to_reverse, 0, msg_to_reverse.length);
 
-				Iso8583Post msg_req = new Iso8583Post();
-
-				try {
-					msg_req.fromMsg(iso8583msg_req, 0);
-					msg_req.setMessageType("0421");
-				} catch (XPostilion e) {
-
-					e.printStackTrace();
-				}
-
-				logger.error( "Check Req msg: " + msg_req.toString() );
+				Iso8583Post msg_req = cleanMsgForReversal(msg_rvsal_b); //TODO: Encapsulate
 
 				byte[] msg_repeat_revsal = prepareTranReversalReqFromAPI(msg_req);
+
 				msg_rsp = processTranReversalReqToPostilion(msg_repeat_revsal, sc);			
 
 			}
@@ -233,10 +255,22 @@ public class PostilionConnector implements Runnable {
 				logger.info("Transmission ended and connection closed | RESPONSE TIME(ms):"   + (rspTime!=0L ? rspTime : "N/A") );
 			}
 		}
-		
 		return msg_rsp;
 	}
 
+	private boolean msgRespHasReversalResp(Iso8583Post msg_rsp) {
+
+		try {
+			String rc = msg_rsp.getResponseCode();
+			if (rc.equals("00") || rc.equals("25") || rc.equals("94") || rc.equals("96")){
+				return true;
+			}
+		} catch (XPostilion e) {
+
+			e.printStackTrace();
+		}
+		return false;
+	}
 
 
 	static class RetryOnExceptionStrategy {

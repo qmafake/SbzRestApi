@@ -61,8 +61,7 @@ public class SocketConn {
 			logger.error("FAILED to connect to Postilion on " + Api2PostilionConfig.serverIpAddress );
 			e.printStackTrace();
 		} catch (java.net.ConnectException e){
-			logger.error("FAILED to connect to Postilion on " + Api2PostilionConfig.serverIpAddress );
-			e.printStackTrace();
+			logger.error("FAILED to connect to Postilion on " + Api2PostilionConfig.serverIpAddress + " - " + e.getMessage() );			
 			
 		} catch (IOException e) {
 

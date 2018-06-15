@@ -70,7 +70,7 @@ public class Api2PostilionConfig {
 
 		if ( getEnviromentType().equals("WINDOWS")){
 			String path = "C:/StewardBank/config/rest_postilion.ini";
-			logger.info("Window System: Reading configuration settings: " + path);
+			logger.info("Windows System: Reading configuration settings: " + path);
 			return new FileInputStream(path);		
 		}
 		else{
@@ -83,8 +83,6 @@ public class Api2PostilionConfig {
 			return new FileInputStream(path);
 		}			
 	}
-
-
 
 	public static String getEnviromentType()
 	{
