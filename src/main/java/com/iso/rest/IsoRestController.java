@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.isorest.domain.IsoRestRequest;
 import com.isorest.domain.StewardBankApiResponse;
 import com.isorest.domain.StewardResponseBody;
-import com.isorest.postilion.Api2PostilionConfig;
-import com.isorest.postilion.PostilionConnector;
+
+import com.isorest.helper.*; //TODO: blah blah
 
 import postilion.realtime.sdk.message.bitmap.Iso8583.Bit;
 import postilion.realtime.sdk.message.bitmap.Iso8583Post;
@@ -67,15 +67,20 @@ public class IsoRestController {
 
 
 		StewardResponseBody stewardResponseBody = new StewardResponseBody();
+		stewardResponseBody.setPostilionReqMsgType("0200");
 		
 		try { //TODO: Error handle a no response case
 
 			if (iso8583msg_resp.getResponseCode() == null)
 			{
 				stewardBankApiResponse.setMessage("ERROR OCCURED");
-				stewardBankApiResponse.setStatusCode("500");						
-				stewardResponseBody.setRrn("N/A");
-				stewardResponseBody.setPostilion_resp_code("N/A");
+				
+				stewardBankApiResponse.setStatusCode("500");
+								
+				stewardResponseBody.setPostilionRRN("N/A");
+				stewardResponseBody.setPostilionRespCode("N/A");				
+				stewardResponseBody.setPostilionRespMsgType("N/A");
+				
 				stewardBankApiResponse.setResponseBody(stewardResponseBody);
 				
 				return stewardBankApiResponse;
@@ -86,15 +91,25 @@ public class IsoRestController {
 				stewardBankApiResponse.setMessage("SUCCESS");
 				stewardBankApiResponse.setStatusCode("200");
 				
-				stewardResponseBody.setRrn(iso8583msg_resp.getField(Bit._037_RETRIEVAL_REF_NR));
-				stewardResponseBody.setPostilion_resp_code(iso8583msg_resp.getResponseCode());
-				stewardBankApiResponse.setResponseBody(stewardResponseBody);				
+				stewardResponseBody.setPostilionRRN(iso8583msg_resp.getField(Bit._037_RETRIEVAL_REF_NR));
+				stewardResponseBody.setPostilionRespCode(iso8583msg_resp.getResponseCode());
+				stewardResponseBody.setPostilionRespMsgType(iso8583msg_resp.getMessageType());
+				
+				stewardBankApiResponse.setResponseBody(stewardResponseBody);	
+				
+				if (stewardResponseBody.getPostilionRespMsgType().equals("0430")){
+					stewardBankApiResponse.setMessage("REVERSED"); 	//Change status if a successful reversal was sent					
+				}
+				
 			}
 			else{
 				stewardBankApiResponse.setMessage("FAILED");
 				stewardBankApiResponse.setStatusCode("500");
-				stewardResponseBody.setRrn(iso8583msg_resp.getField(Bit._037_RETRIEVAL_REF_NR));
-				stewardResponseBody.setPostilion_resp_code(iso8583msg_resp.getResponseCode());
+				
+				stewardResponseBody.setPostilionRRN(iso8583msg_resp.getField(Bit._037_RETRIEVAL_REF_NR));
+				stewardResponseBody.setPostilionRespCode(iso8583msg_resp.getResponseCode());
+				stewardResponseBody.setPostilionRespMsgType(iso8583msg_resp.getMessageType());
+				
 				stewardBankApiResponse.setResponseBody(stewardResponseBody);	
 			}
 			

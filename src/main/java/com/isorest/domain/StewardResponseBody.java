@@ -4,27 +4,48 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class StewardResponseBody {
 	
-	@JsonProperty (value="retrieval_ref_nr")
-	private String rrn;
+	private String postilionReqMsgType;	
 	
-	private String postilion_resp_code;
+	private String postilionRespMsgType;	
+		
+	private String postilionRRN;
+	
+//	@JsonProperty (value="retrieval_ref_nr")
+	private String postilionRespCode;
 	
 	
-	public String getRrn() {
-		return rrn;
+	public String getPostilionRRN() {
+		return postilionRRN;
 	}
 
-	public void setRrn(String rrn) {
-		this.rrn = rrn;
+	public void setPostilionRRN(String rrn) {
+		this.postilionRRN = rrn;
 	}
 	
-	public String getPostilion_resp_code() {
-		return postilion_resp_code;
+	public String getPostilionRespCode() {
+		return postilionRespCode;
 	}
 
-	public void setPostilion_resp_code(String postilion_resp_code) {
-		this.postilion_resp_code = postilion_resp_code;
+	public void setPostilionRespCode(String postilion_resp_code) {
+		this.postilionRespCode = postilion_resp_code;
 	}
+	
+	public String getPostilionReqMsgType() {
+		return postilionReqMsgType;
+	}
+
+	public void setPostilionReqMsgType(String postilionReqMsgType) {
+		this.postilionReqMsgType = postilionReqMsgType;
+	}
+
+	public String getPostilionRespMsgType() {
+		return postilionRespMsgType;
+	}
+
+	public void setPostilionRespMsgType(String msgType) {
+		this.postilionRespMsgType = msgType;
+	}
+	
 	
 	
 }

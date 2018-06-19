@@ -14,12 +14,14 @@ public class StewardBankApiResponse {
     private static final long serialVersionUID = -0x32EA84E37FFB508EL;
 
     private String statusCode;
+    
     private String message;    
+    
     private StewardResponseBody responseBody;
 
     public StewardBankApiResponse() {
-        statusCode = StewardBankConstants.StatusCodes.SUCCESS;
-        message = StewardBankConstants.Messages.OK;
+//        statusCode = StewardBankConstants.StatusCodes.SUCCESS;
+//        message = StewardBankConstants.Messages.OK;
     }
 
     public String getStatusCode() {

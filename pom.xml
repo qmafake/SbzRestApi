@@ -17,6 +17,13 @@
 
 	<dependencies>
 
+
+		<dependency>
+			<groupId>com.wrapper.custom</groupId>
+			<artifactId>rest-iso-server-helper</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.json</groupId>
 			<artifactId>json</artifactId>
@@ -308,11 +315,7 @@
 			<artifactId>postilion.realtime</artifactId>
 			<version>5.3</version>
 		</dependency>
-		<dependency>
-			<groupId>test</groupId>
-			<artifactId>testing</artifactId>
-			<version>1.1</version>
-		</dependency>
+
 	</dependencies>
 
 	<build>
